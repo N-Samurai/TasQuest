@@ -1,0 +1,15 @@
+# node_modules はアップしない
+node_modules/
+
+# ビルド成果物（巨大な実行ファイル類）
+release/
+*.exe
+*.appImage
+
+# OS固有のファイル
+.DS_Store
+Thumbs.db
+
+# ログや一時ファイル
+*.log
+*.tmp
