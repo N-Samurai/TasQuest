@@ -8,14 +8,15 @@ const isDev = !app.isPackaged;
 
 ipcMain.handle("load-tasks", () => {
   try {
-    return JSON.parse(fs.readFileSync(dataFilePath, "utf8"));
+    const content = fs.readFileSync(dataFilePath, "utf8");
+    return JSON.parse(content);
   } catch {
-    return [];
+    return { tasks: [], points: 0 }; // ← 初期値をオブジェクトで返す
   }
 });
 
-ipcMain.on("save-tasks", (_event, tasks) => {
-  fs.writeFileSync(dataFilePath, JSON.stringify(tasks, null, 2));
+ipcMain.on("save-tasks", (_event, data) => {
+  fs.writeFileSync(dataFilePath, JSON.stringify(data, null, 2), "utf-8");
 });
 
 function createWindow() {

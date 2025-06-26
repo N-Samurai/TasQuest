@@ -15,16 +15,18 @@ const Index = () => {
   const [editingId, setEditingId] = useState<string | null>(null); // どのタスクを編集中か
 
   useEffect(() => {
-    // アプリ起動時に読み込む
-    window.api.loadTasks().then((loadedTasks) => {
-      setTasks(loadedTasks);
+    window.api.loadTasks().then((data) => {
+      // tasks / points が無いケースを必ず潰す
+      const result = data as { tasks?: Task[]; points?: number };
+
+      setTasks(result.tasks ?? []); // ← ★ nullish 合体で必ず配列に
+      setPoints(result.points ?? 0);
     });
   }, []);
 
   useEffect(() => {
-    // tasksが変わったら保存
-    window.api.saveTasks(tasks);
-  }, [tasks]);
+    window.api.saveTasks({ tasks, points }); // キャスト不要
+  }, [tasks, points]);
 
   const toggleTimeline = (id: string) =>
     setTimelineRootId((prev) => (prev === id ? null : id));
@@ -33,7 +35,9 @@ const Index = () => {
     if (!editingId) return;
     setTasks((prev) =>
       prev.map((t) =>
-        t.id === editingId ? { ...t, title: input, deadline } : t
+        t.id === editingId
+          ? { ...t, title: input, deadline, parentId: parentId || undefined }
+          : t
       )
     );
     // 後片づけ
@@ -65,24 +69,34 @@ const Index = () => {
   };
 
   const toggleTask = (id: string) => {
-    // 現在のタスクを探す
+    // 対象タスクを探す
     const targetTask = tasks.find((task) => task.id === id);
     if (!targetTask) return;
 
+    // 子タスクに未完了があるかどうか確認（親→子を調べる）
+    const hasUncompletedChildren = tasks.some(
+      (task) => task.parentId === id && !task.completed
+    );
+
+    // まだ完了していない状態で、子タスクが未完了なら完了を禁止
+    if (!targetTask.completed && hasUncompletedChildren) {
+      alert("未完了の子タスクがあるため、完了できません。");
+      return;
+    }
+
     const newCompleted = !targetTask.completed;
 
-    // ポイント更新
-    setPoints((prevPoints) => {
-      return newCompleted ? prevPoints + 1 : prevPoints - 1;
-    });
+    // ポイント加算・減算
+    setPoints((prevPoints) => (newCompleted ? prevPoints + 1 : prevPoints - 1));
 
-    // タスク状態更新
+    // 完了状態を更新
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task.id === id ? { ...task, completed: newCompleted } : task
       )
     );
   };
+
   const onDelete = (id: string) => {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
   };

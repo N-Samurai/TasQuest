@@ -1,6 +1,6 @@
 import type { Task } from "../types/task";
 import TaskInput from "../components/TaskInput";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useState } from "react"; // useState を追加
 
 interface TaskItemProps extends Omit<Task, "children"> {
   // ★ 修正
@@ -43,6 +43,7 @@ export default function TaskItem({
   setEditingId,
   toggleTimeline,
 }: TaskItemProps) {
+  const [isOpen, setIsOpen] = useState(true);
   return (
     <li>
       <div style={{ marginLeft: `${level * 24}px` }}>
@@ -67,6 +68,14 @@ export default function TaskItem({
                 {deadline}
               </span>
             </div>
+            {/* ▼ 折りたたみトグルボタン */}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-gray-500 hover:text-gray-700 text-xl w-6"
+              title="子タスクを開閉"
+            >
+              {isOpen ? "▾" : "▸"}
+            </button>
           </div>
 
           <div className="flex gap-2 ml-4">
@@ -132,7 +141,7 @@ export default function TaskItem({
           </div>
         )}
         {/* ▼ 末尾で子タスクを描画 */}
-        {children}
+        {isOpen && children}
       </div>
     </li>
   );
