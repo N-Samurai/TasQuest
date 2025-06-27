@@ -35,6 +35,13 @@ export default function TaskInput({
               placeholder="タスクを入力..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault(); // フォーム送信防止（念のため）
+                  onSubmit();
+                  setShowInput(false);
+                }
+              }}
             />
           </div>
           <div>{id}</div>
