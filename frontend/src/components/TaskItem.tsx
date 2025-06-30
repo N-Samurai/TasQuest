@@ -44,6 +44,18 @@ export default function TaskItem({
   toggleTimeline,
 }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(true);
+  // useState 追加（フィードバック用・任意）
+  const [copied, setCopied] = useState(false);
+
+  // コピー関数
+  const handleCopyId = () => {
+    navigator.clipboard.writeText(id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500); // 1.5秒でリセット
+    });
+  };
+  const [visible, setVisible] = useState(true);
+
   return (
     <li>
       <div style={{ marginLeft: `${level * 24}px` }}>
@@ -63,7 +75,16 @@ export default function TaskItem({
               >
                 {title}
               </div>
-              <div className="text-xs text-gray-400">{id}</div>
+              <div
+                onClick={handleCopyId}
+                className="text-sm text-gray-600 cursor-pointer hover:text-blue-600"
+                title="クリックしてIDをコピー"
+              >
+                {id}{" "}
+                {copied && (
+                  <span className="text-green-500 ml-2">✅ コピーしました</span>
+                )}
+              </div>
               <span className="ml-2 px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-600">
                 {deadline}
               </span>
@@ -137,6 +158,8 @@ export default function TaskItem({
               submitLabel="追加" /* ★ 追加 */
               setShowInput={setShowInput}
               id={id}
+              visible={visible}
+              setVisible={setVisible}
             />
           </div>
         )}

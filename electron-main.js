@@ -23,12 +23,14 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
+    icon: path.join(__dirname, "assets", "icon.png"),
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, "preload.js"),
     },
   });
-
+  // 👇 メニューバーを完全に非表示にする（これを追加！）
+  win.setMenu(null);
   if (isDev) {
     win.loadURL("http://localhost:3000");
     win.webContents.openDevTools();

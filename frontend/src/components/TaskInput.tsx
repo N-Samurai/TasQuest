@@ -1,3 +1,5 @@
+import React, { useEffect, useRef } from "react";
+
 interface TaskInputProps {
   input: string;
   setInput: (val: string) => void;
@@ -10,6 +12,9 @@ interface TaskInputProps {
   onSubmit: () => void;
   submitLabel: string;
   addTask?: () => void;
+  // 👇 インビジブル関連を追加
+  visible: boolean;
+  setVisible: (val: boolean) => void;
 }
 
 export default function TaskInput({
@@ -23,7 +28,16 @@ export default function TaskInput({
   setParentId,
   onSubmit, // ★ 追加
   submitLabel,
+  visible, // ★追加
+  setVisible,
 }: TaskInputProps) {
+  // TaskInput コンポーネント内に追加
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus(); // マウント時に自動フォーカス
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-white/40 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl w-[500px] max-w-full">
@@ -31,6 +45,7 @@ export default function TaskInput({
           <div>
             <label className="text-sm text-gray-700 mb-1 block">タスク名</label>
             <input
+              ref={inputRef}
               className="w-full h-10 px-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               placeholder="タスクを入力..."
               value={input}
@@ -61,7 +76,18 @@ export default function TaskInput({
               onChange={(e) => setDeadline(e.target.value)}
             />
           </div>
-
+          {/* 🔽 インビジブルスイッチ */}
+          <div className="flex items-center gap-2 mt-2">
+            <label className="text-sm text-gray-700">
+              このタスクを非表示にする
+            </label>
+            <input
+              type="checkbox"
+              checked={!visible}
+              onChange={(e) => setVisible(!e.target.checked)}
+              className="w-5 h-5 accent-blue-600"
+            />
+          </div>
           <div className="flex justify-end gap-2">
             <div className="flex justify-end gap-2 mt-4">
               <button

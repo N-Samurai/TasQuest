@@ -13,6 +13,8 @@ const Index = () => {
   const [parentId, setParentId] = useState<string>("");
   const [timelineRootId, setTimelineRootId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null); // どのタスクを編集中か
+  const [visible, setVisible] = useState(true);
+  const [showInvisible, setShowInvisible] = useState(false);
 
   useEffect(() => {
     window.api.loadTasks().then((data) => {
@@ -36,7 +38,13 @@ const Index = () => {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === editingId
-          ? { ...t, title: input, deadline, parentId: parentId || undefined }
+          ? {
+              ...t,
+              title: input,
+              deadline,
+              parentId: parentId || undefined,
+              visible,
+            }
           : t
       )
     );
@@ -57,6 +65,7 @@ const Index = () => {
       children: [],
       deadline: deadline || undefined,
       parentId: parentId || undefined,
+      visible,
     };
 
     // ← どんな場合でもまず flat 配列に追加
@@ -125,7 +134,8 @@ const Index = () => {
   // Index.tsx 内の return の直前に追加
   const renderTasks = (nodes: Task[], level = 0): React.ReactElement[] =>
     nodes
-      .filter((t) => !t.completed)
+      .filter((t) => !t.completed && (showInvisible || t.visible !== false))
+
       .flatMap((t) => {
         const { children: childArray, ...taskProps } = t; // ← ★ children を除外
 
@@ -225,10 +235,28 @@ const Index = () => {
   return (
     <div className="w-full h-screen p-4 overflow-y-auto">
       <div className="ml-4 font-bold text-gray-700">{points}pt</div>
+      {/* 👁 非表示タスク表示トグル */}
+      <div className="flex items-center gap-2 mb-4 ml-4 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          id="show-invisible"
+          checked={showInvisible}
+          onChange={() => setShowInvisible(!showInvisible)}
+          className="w-4 h-4 accent-blue-600"
+        />
+        <label htmlFor="show-invisible">非表示タスクも表示</label>
+      </div>
 
       <ul>{renderTasks(tree)}</ul>
       <button
-        onClick={() => setShowInput(!showInput)}
+        onClick={() => {
+          setEditingId(null); // 編集IDをクリア → 「追加」モードに
+          setInput(""); // 入力テキストをクリア
+          setDeadline(""); // 期限もクリア
+          setParentId(""); // 親IDもクリア（親なしにする）
+          setVisible(true); // 非表示トグルはデフォルト表示ON
+          setShowInput(true); // 入力フォームを開く
+        }}
         className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-blue-500 text-white text-2xl font-bold shadow-lg hover:bg-blue-600 transition duration-200"
       >
         +
@@ -246,6 +274,8 @@ const Index = () => {
           submitLabel={editingId ? "保存" : "追加"}
           deadline={deadline ?? ""} /* ★ 追加: 空文字で OK */
           id={editingId ?? ""}
+          visible={visible} // ← ★ 追加
+          setVisible={setVisible}
         />
       )}
     </div>
