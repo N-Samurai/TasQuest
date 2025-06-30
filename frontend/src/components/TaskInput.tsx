@@ -12,9 +12,6 @@ interface TaskInputProps {
   onSubmit: () => void;
   submitLabel: string;
   addTask?: () => void;
-  // 👇 インビジブル関連を追加
-  visible: boolean;
-  setVisible: (val: boolean) => void;
 }
 
 export default function TaskInput({
@@ -28,8 +25,6 @@ export default function TaskInput({
   setParentId,
   onSubmit, // ★ 追加
   submitLabel,
-  visible, // ★追加
-  setVisible,
 }: TaskInputProps) {
   // TaskInput コンポーネント内に追加
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,18 +71,7 @@ export default function TaskInput({
               onChange={(e) => setDeadline(e.target.value)}
             />
           </div>
-          {/* 🔽 インビジブルスイッチ */}
-          <div className="flex items-center gap-2 mt-2">
-            <label className="text-sm text-gray-700">
-              このタスクを非表示にする
-            </label>
-            <input
-              type="checkbox"
-              checked={!visible}
-              onChange={(e) => setVisible(!e.target.checked)}
-              className="w-5 h-5 accent-blue-600"
-            />
-          </div>
+
           <div className="flex justify-end gap-2">
             <div className="flex justify-end gap-2 mt-4">
               <button

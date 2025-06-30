@@ -5,5 +5,4 @@ export interface Task {
   children: Task[];
   deadline?: string;
   completed?: boolean;
-  visible?: boolean;
 }

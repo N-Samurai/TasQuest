@@ -20,6 +20,7 @@ interface TaskItemProps extends Omit<Task, "children"> {
   children?: ReactNode; // React 用 children
   setEditingId: (id: string | null) => void;
   toggleTimeline: (id: string) => void;
+  style?: React.CSSProperties;
 }
 
 export default function TaskItem({
@@ -42,6 +43,7 @@ export default function TaskItem({
   children,
   setEditingId,
   toggleTimeline,
+  style,
 }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(true);
   // useState 追加（フィードバック用・任意）
@@ -54,10 +56,9 @@ export default function TaskItem({
       setTimeout(() => setCopied(false), 1500); // 1.5秒でリセット
     });
   };
-  const [visible, setVisible] = useState(true);
 
   return (
-    <li>
+    <li style={style}>
       <div style={{ marginLeft: `${level * 24}px` }}>
         <div className="flex items-center justify-between p-4 bg-white shadow rounded hover:shadow-md transition">
           <div className="flex items-center gap-3">
@@ -158,8 +159,6 @@ export default function TaskItem({
               submitLabel="追加" /* ★ 追加 */
               setShowInput={setShowInput}
               id={id}
-              visible={visible}
-              setVisible={setVisible}
             />
           </div>
         )}
