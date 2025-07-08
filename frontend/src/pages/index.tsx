@@ -36,7 +36,7 @@ const Index = () => {
     setTasks((prev) =>
       prev.map((t) =>
         t.id === editingId
-          ? { ...t, title: input, deadline } // ← parentIdを残す
+          ? { ...t, title: input, deadline, parentId: parentId || undefined }
           : t
       )
     );
@@ -46,6 +46,7 @@ const Index = () => {
     setInput("");
     setDeadline("");
     setShowInput(false);
+    setParentId(""); // ← ここもクリアしておくと良い
   };
 
   const addtask = () => {
