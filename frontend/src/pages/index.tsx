@@ -3,6 +3,7 @@ import type { Task } from "../types/task";
 import TaskItem from "../components/TaskItem";
 import TaskInput from "../components/TaskInput";
 import { nanoid } from "nanoid";
+import Sidebar from "../components/Sidebar";
 
 const Index = () => {
   const [tasks, setTasks] = useState<Task[]>([]); // タスクリスト
@@ -13,6 +14,7 @@ const Index = () => {
   const [parentId, setParentId] = useState<string>("");
   const [timelineRootId, setTimelineRootId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null); // どのタスクを編集中か
+  const [menuOpen, setMenuOpen] = useState(true); // メニューの表示切り替え
 
   useEffect(() => {
     window.api.loadTasks().then((data) => {
@@ -228,32 +230,60 @@ const Index = () => {
   }
 
   return (
-    <div className="w-full h-screen p-4 overflow-y-auto">
-      <div className="ml-4 font-bold text-gray-700">{points}pt</div>
-
-      <ul>{renderTasks(tree)}</ul>
-      <button
-        onClick={() => setShowInput(!showInput)}
-        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-blue-500 text-white text-2xl font-bold shadow-lg hover:bg-blue-600 transition duration-200"
-      >
-        +
-      </button>
-      {editingId === null && showInput && (
-        <TaskInput
-          input={input}
-          setInput={setInput}
-          setDeadline={setDeadline}
-          addTask={addtask}
-          setShowInput={setShowInput}
-          parentId={parentId}
-          setParentId={setParentId}
-          deadline={deadline ?? ""}
-          id=""
-          onSubmit={addtask} // ✅ ここを addtask にする
-          submitLabel="追加"
-          setEditingId={setEditingId}
-        />
+    <div className="flex w-full h-screen">
+      {menuOpen && (
+        <div className="w-64 bg-gray-100 p-4 shadow-md">
+          <h2 className="font-bold text-lg mb-4">メニュー</h2>
+          <ul>
+            <li className="mb-2 cursor-pointer hover:text-blue-600">
+              タスク一覧
+            </li>
+            <li className="mb-2 cursor-pointer hover:text-blue-600">
+              オーバービュー
+            </li>
+            <li className="mb-2 cursor-pointer hover:text-blue-600">
+              ログ履歴
+            </li>
+            <li className="mb-2 cursor-pointer hover:text-blue-600">設定</li>
+          </ul>
+        </div>
       )}
+
+      {/* メインコンテンツ */}
+      <div className="flex-1 p-4 overflow-y-auto relative">
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="absolute top-4 left-4 z-50 p-2 bg-gray-200 hover:bg-gray-300 rounded"
+        >
+          {menuOpen ? "←" : "→"}
+        </button>
+
+        <div className="ml-50 font-bold text-gray-700">{points}pt</div>
+
+        <ul>{renderTasks(tree)}</ul>
+        <button
+          onClick={() => setShowInput(!showInput)}
+          className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-blue-500 text-white text-2xl font-bold shadow-lg hover:bg-blue-600 transition duration-200"
+        >
+          +
+        </button>
+        {editingId === null && showInput && (
+          <TaskInput
+            input={input}
+            setInput={setInput}
+            setDeadline={setDeadline}
+            addTask={addtask}
+            setShowInput={setShowInput}
+            parentId={parentId}
+            setParentId={setParentId}
+            deadline={deadline ?? ""}
+            id=""
+            onSubmit={addtask} // ✅ ここを addtask にする
+            submitLabel="追加"
+            setEditingId={setEditingId}
+          />
+        )}
+      </div>
     </div>
   );
 };
