@@ -21,6 +21,7 @@ interface TaskItemProps extends Omit<Task, "children"> {
   setEditingId: (id: string | null) => void;
   toggleTimeline: (id: string) => void;
   style?: React.CSSProperties;
+  editingId: string | null;
 }
 
 export default function TaskItem({
@@ -44,6 +45,7 @@ export default function TaskItem({
   setEditingId,
   toggleTimeline,
   style,
+  editingId,
 }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(true);
   // useState 追加（フィードバック用・任意）
@@ -58,7 +60,7 @@ export default function TaskItem({
   };
 
   return (
-    <li style={style}>
+    <div style={style}>
       <div style={{ marginLeft: `${level * 24}px` }}>
         <div className="flex items-center justify-between p-4 bg-white shadow rounded hover:shadow-md transition">
           <div className="flex items-center gap-3">
@@ -146,7 +148,7 @@ export default function TaskItem({
         </div>
 
         {/* 入力フォーム表示 */}
-        {showInput && (
+        {editingId === id && (
           <div onClick={(e) => e.stopPropagation()}>
             <TaskInput
               input={input}
@@ -155,16 +157,17 @@ export default function TaskItem({
               setDeadline={setDeadline}
               parentId={parentId}
               setParentId={setParentId}
-              onSubmit={addtask} /* ★ 追加 */
-              submitLabel="追加" /* ★ 追加 */
-              setShowInput={setShowInput}
+              onSubmit={addtask}
+              submitLabel="追加"
+              setShowInput={setShowInput} // ← あってもいいが、編集時は不要になるかも
               id={id}
             />
           </div>
         )}
+
         {/* ▼ 末尾で子タスクを描画 */}
         {isOpen && children}
       </div>
-    </li>
+    </div>
   );
 }

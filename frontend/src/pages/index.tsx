@@ -151,6 +151,7 @@ const Index = () => {
               setTimelineRootId={setTimelineRootId}
               toggleTimeline={toggleTimeline}
               setEditingId={setEditingId}
+              editingId={editingId}
             />,
             ...flattenAndSortByDeadline(t).map((c) => {
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -174,6 +175,7 @@ const Index = () => {
                   setTimelineRootId={setTimelineRootId}
                   toggleTimeline={toggleTimeline}
                   setEditingId={setEditingId}
+                  editingId={editingId}
                 />
               );
             }),
@@ -200,6 +202,7 @@ const Index = () => {
             setTimelineRootId={setTimelineRootId}
             setEditingId={setEditingId}
             toggleTimeline={toggleTimeline}
+            editingId={editingId}
           >
             {renderTasks(childArray, level + 1)} {/* ← 再帰描画 */}
           </TaskItem>,
@@ -235,7 +238,7 @@ const Index = () => {
       >
         +
       </button>
-      {showInput && (
+      {editingId === null && showInput && (
         <TaskInput
           input={input}
           setInput={setInput}
@@ -244,10 +247,10 @@ const Index = () => {
           setShowInput={setShowInput}
           parentId={parentId}
           setParentId={setParentId}
-          onSubmit={editingId ? saveTask : addtask} // ★ ここだけ切替
-          submitLabel={editingId ? "保存" : "追加"}
-          deadline={deadline ?? ""} /* ★ 追加: 空文字で OK */
-          id={editingId ?? ""}
+          onSubmit={addtask}
+          submitLabel="追加"
+          deadline={deadline ?? ""}
+          id=""
         />
       )}
     </div>
