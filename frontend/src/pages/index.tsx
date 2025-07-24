@@ -141,7 +141,6 @@ const Index = () => {
               onDelete={onDelete}
               setDeadline={setDeadline}
               setShowInput={setShowInput}
-              showInput={showInput}
               parentId={parentId}
               setParentId={setParentId}
               setInput={setInput}
@@ -152,6 +151,7 @@ const Index = () => {
               toggleTimeline={toggleTimeline}
               setEditingId={setEditingId}
               editingId={editingId}
+              saveTask={saveTask}
             />,
             ...flattenAndSortByDeadline(t).map((c) => {
               // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -165,7 +165,6 @@ const Index = () => {
                   onDelete={onDelete}
                   setDeadline={setDeadline}
                   setShowInput={setShowInput}
-                  showInput={showInput}
                   parentId={parentId}
                   setParentId={setParentId}
                   setInput={setInput}
@@ -176,6 +175,7 @@ const Index = () => {
                   toggleTimeline={toggleTimeline}
                   setEditingId={setEditingId}
                   editingId={editingId}
+                  saveTask={saveTask}
                 />
               );
             }),
@@ -192,7 +192,6 @@ const Index = () => {
             onDelete={onDelete}
             setDeadline={setDeadline}
             setShowInput={setShowInput}
-            showInput={showInput}
             parentId={parentId}
             setParentId={setParentId}
             setInput={setInput}
@@ -203,6 +202,7 @@ const Index = () => {
             setEditingId={setEditingId}
             toggleTimeline={toggleTimeline}
             editingId={editingId}
+            saveTask={saveTask}
           >
             {renderTasks(childArray, level + 1)} {/* ← 再帰描画 */}
           </TaskItem>,
@@ -247,10 +247,11 @@ const Index = () => {
           setShowInput={setShowInput}
           parentId={parentId}
           setParentId={setParentId}
-          onSubmit={addtask}
-          submitLabel="追加"
           deadline={deadline ?? ""}
           id=""
+          onSubmit={addtask} // ✅ ここを addtask にする
+          submitLabel="追加"
+          setEditingId={setEditingId}
         />
       )}
     </div>

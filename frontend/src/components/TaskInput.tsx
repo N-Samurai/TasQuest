@@ -12,6 +12,7 @@ interface TaskInputProps {
   onSubmit: () => void;
   submitLabel: string;
   addTask?: () => void;
+  setEditingId?: (id: string | null) => void;
 }
 
 export default function TaskInput({
@@ -25,6 +26,7 @@ export default function TaskInput({
   setParentId,
   onSubmit, // ★ 追加
   submitLabel,
+  setEditingId,
 }: TaskInputProps) {
   // TaskInput コンポーネント内に追加
   const inputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +86,10 @@ export default function TaskInput({
                 {submitLabel} {/* ★ 追加 or 保存 */}
               </button>
               <button
-                onClick={() => setShowInput(false)}
+                onClick={() => {
+                  setShowInput(false);
+                  if (setEditingId) setEditingId(null); // ← 存在する場合だけ呼ぶ
+                }}
                 className="h-10 px-6 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-shadow shadow-inner"
               >
                 キャンセル

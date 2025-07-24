@@ -8,7 +8,7 @@ interface TaskItemProps extends Omit<Task, "children"> {
   onDelete: (id: string) => void;
   setDeadline: (deadline: string) => void;
   level?: number;
-  showInput: boolean;
+
   setShowInput: (show: boolean) => void;
   input: string;
   setInput: (input: string) => void;
@@ -22,6 +22,7 @@ interface TaskItemProps extends Omit<Task, "children"> {
   toggleTimeline: (id: string) => void;
   style?: React.CSSProperties;
   editingId: string | null;
+  saveTask: () => void;
 }
 
 export default function TaskItem({
@@ -33,7 +34,6 @@ export default function TaskItem({
   deadline,
   setDeadline,
   level = 0,
-  showInput,
   setShowInput,
   input,
   setInput,
@@ -46,6 +46,7 @@ export default function TaskItem({
   toggleTimeline,
   style,
   editingId,
+  saveTask,
 }: TaskItemProps) {
   const [isOpen, setIsOpen] = useState(true);
   // useState 追加（フィードバック用・任意）
@@ -157,10 +158,11 @@ export default function TaskItem({
               setDeadline={setDeadline}
               parentId={parentId}
               setParentId={setParentId}
-              onSubmit={addtask}
-              submitLabel="追加"
               setShowInput={setShowInput} // ← あってもいいが、編集時は不要になるかも
               id={id}
+              onSubmit={editingId === id ? saveTask : addtask}
+              submitLabel={editingId === id ? "保存" : "追加"}
+              setEditingId={setEditingId}
             />
           </div>
         )}
