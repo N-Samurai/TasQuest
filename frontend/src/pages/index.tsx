@@ -231,33 +231,8 @@ const Index = () => {
 
   return (
     <div className="flex w-full h-screen">
-      {menuOpen && (
-        <div className="w-64 bg-gray-100 p-4 shadow-md">
-          <h2 className="font-bold text-lg mb-4">メニュー</h2>
-          <ul>
-            <li className="mb-2 cursor-pointer hover:text-blue-600">
-              タスク一覧
-            </li>
-            <li className="mb-2 cursor-pointer hover:text-blue-600">
-              オーバービュー
-            </li>
-            <li className="mb-2 cursor-pointer hover:text-blue-600">
-              ログ履歴
-            </li>
-            <li className="mb-2 cursor-pointer hover:text-blue-600">設定</li>
-          </ul>
-        </div>
-      )}
-
       {/* メインコンテンツ */}
       <div className="flex-1 p-4 overflow-y-auto relative">
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="absolute top-4 left-4 z-50 p-2 bg-gray-200 hover:bg-gray-300 rounded"
-        >
-          {menuOpen ? "←" : "→"}
-        </button>
-
         <div className="ml-50 font-bold text-gray-700">{points}pt</div>
 
         <ul>{renderTasks(tree)}</ul>

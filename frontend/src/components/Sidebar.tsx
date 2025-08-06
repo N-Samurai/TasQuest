@@ -1,36 +1,80 @@
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Home, List } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Home,
+  List,
+  Zap,
+  Network, // もし存在しなければ Share2 や GitBranch に差し替え
+  History,
+  Settings,
+} from "lucide-react";
 
-export default function Sidebar({ onNewTask }: { onNewTask: () => void }) {
+type Props = { onNewTask: () => void };
+
+export default function Sidebar({ onNewTask }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const { pathname } = useRouter();
+
+  const items = [
+    { href: "/dashboard", label: "ダッシュボード", Icon: Home },
+    { href: "/", label: "タスク一覧", Icon: List },
+    { href: "/now", label: "NOW!!", Icon: Zap },
+    { href: "/network", label: "ネットワークビュー", Icon: Network },
+    { href: "/logs", label: "ログ", Icon: History },
+    { href: "/settings", label: "設定", Icon: Settings },
+  ];
+
+  const isActive = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(href));
 
   return (
     <div
       className={`h-screen bg-gray-900 text-white transition-all duration-300 ${
-        collapsed ? "w-16" : "w-60"
+        collapsed ? "w-16" : "w-64"
       }`}
     >
+      {/* Header */}
       <div className="flex items-center justify-between p-2">
         {!collapsed && <span className="text-lg font-bold">TasQuest</span>}
-        <button onClick={() => setCollapsed(!collapsed)} className="p-1">
+        <button
+          onClick={() => setCollapsed((v) => !v)}
+          className="p-1"
+          aria-label={collapsed ? "サイドバーを開く" : "サイドバーを閉じる"}
+        >
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
       </div>
 
-      <nav className="flex flex-col gap-2 p-2">
-        <button className="flex items-center gap-2 hover:bg-gray-700 rounded p-2">
-          <Home size={20} />
-          {!collapsed && <span>ダッシュボード</span>}
-        </button>
+      {/* Nav */}
+      <nav className="flex flex-col gap-1 p-2">
+        {items.map(({ href, label, Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex items-center gap-2 rounded px-3 py-2 transition-colors
+              ${
+                isActive(href)
+                  ? "bg-gray-800 text-white"
+                  : "text-gray-300 hover:bg-gray-700"
+              }
+            `}
+            aria-current={isActive(href) ? "page" : undefined}
+            title={collapsed ? label : undefined}
+          >
+            <Icon size={20} />
+            {!collapsed && <span>{label}</span>}
+          </Link>
+        ))}
 
-        <button className="flex items-center gap-2 hover:bg-gray-700 rounded p-2">
-          <List size={20} />
-          {!collapsed && <span>タスク一覧</span>}
-        </button>
-
+        {/* New Task */}
         <button
           onClick={onNewTask}
-          className="flex items-center gap-2 hover:bg-gray-700 rounded p-2"
+          className="mt-2 flex items-center gap-2 rounded px-3 py-2 text-gray-300 hover:bg-gray-700"
+          title={collapsed ? "新規タスク" : undefined}
         >
           <Plus size={20} />
           {!collapsed && <span>新規タスク</span>}

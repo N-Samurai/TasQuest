@@ -1,16 +1,23 @@
 {
   "name": "TasQuest",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "electron-main.js",
   "scripts": {
-    "dev": "concurrently -k \"next dev\" \"wait-on tcp:3000 && electron .\"",
-    "pack": "npm run build:react && electron-builder --dir",
-    "dist": "npm run build:react && electron-builder",
-    "build:react": "cd frontend && npx next build"
+    "dev": "concurrently -k \"npm:dev:next\" \"npm:dev:electron\"",
+    "dev:next": "npm --prefix frontend run dev",
+    "dev:electron": "wait-on http://localhost:3000 && electron .",
+
+    "export": "npm --prefix frontend run build:export",
+
+    "pack": "npm run export && electron-builder --dir",
+    "dist": "npm run export && electron-builder",
+
+    "build:react": "npm --prefix frontend run build" 
   },
   "devDependencies": {
-    "concurrently": "^8.0.0",
-    "wait-on": "^7.0.0",
+    "concurrently": "^9.0.0",
+    "wait-on": "^7.0.1",
+    "electron": "^31.0.0",
     "electron-builder": "^24.8.0"
   },
   "build": {
@@ -19,10 +26,10 @@
     "files": [
       "electron-main.js",
       "preload.js",
-      ".next/**",
+      "assets/**",
       "frontend/out/**",
-      "public/**",
-      "node_modules/**"
+      "node_modules/**",
+      "package.json"
     ],
     "asar": true,
     "directories": {
