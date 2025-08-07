@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useTasks } from "@/store/useTasks";
+import type { Formatter } from "recharts/types/component/DefaultTooltipContent";
 
-// ── Recharts（SSR 無効で個別読み込み） ──────────────────────
+/* ── Recharts (SSR 無効ロード) ───────────────── */
 const ResponsiveContainer = dynamic(
   () => import("recharts").then((m) => m.ResponsiveContainer),
   { ssr: false }
@@ -24,13 +25,20 @@ const Tooltip = dynamic(() => import("recharts").then((m) => m.Tooltip), {
 const Area = dynamic(() => import("recharts").then((m) => m.Area), {
   ssr: false,
 });
-// ───────────────────────────────────────────────────────────
+/* ──────────────────────────────────────────── */
 
+const tooltipFormatter: Formatter<
+  string | number | (string | number)[], // value 型
+  string | number // name  型
+> = (value, _name) => {
+  void _name; // ← 参照して unused を回避
+  return [`${value} 件`, "完了"];
+};
 export default function DashboardPage() {
   const tasks = useTasks((s) => s.tasks);
-  const [weekShift, setWeekShift] = useState(0); // 0=今週,1=先週…
+  const [weekShift, setWeekShift] = useState(0);
 
-  /* 週ラベル生成 ───────────── */
+  /* 週ラベル ───────────────────────────── */
   const weekLabel = useMemo(() => {
     const end = new Date();
     end.setDate(end.getDate() - weekShift * 7);
@@ -41,23 +49,19 @@ export default function DashboardPage() {
     }/${end.getDate()}`;
   }, [weekShift]);
 
-  /* 集計 ─────────────────── */
+  /* 過去 7 日の完了タスク数を集計 ─────────── */
   const daily = useMemo(() => {
     const anchor = new Date();
     anchor.setHours(0, 0, 0, 0);
-    anchor.setDate(anchor.getDate() - weekShift * 7); // 週オフセット
+    anchor.setDate(anchor.getDate() - weekShift * 7);
 
     const map: Record<string, number> = {};
-
     tasks.forEach((t) => {
       if (!t.completedAt) return;
       const done = new Date(t.completedAt);
       done.setHours(0, 0, 0, 0);
-
-      const diffDays = Math.floor(
-        (anchor.getTime() - done.getTime()) / (1000 * 60 * 60 * 24)
-      );
-      if (diffDays >= 0 && diffDays < 7) {
+      const diff = Math.floor((anchor.getTime() - done.getTime()) / 86_400_000);
+      if (diff >= 0 && diff < 7) {
         const key = done.toLocaleDateString("ja-JP", {
           month: "2-digit",
           day: "2-digit",
@@ -66,7 +70,6 @@ export default function DashboardPage() {
       }
     });
 
-    // 週を古い順で返す
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(anchor);
       d.setDate(anchor.getDate() - (6 - i));
@@ -78,10 +81,10 @@ export default function DashboardPage() {
     });
   }, [tasks, weekShift]);
 
-  /* UI ─────────────────────── */
+  /* ── UI ─────────────────────────────────── */
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-8">
-      {/* ── 7日ラインチャート + 週送り ──────────── */}
+      {/* 上段チャート */}
       <section className="w-full h-80 rounded-lg bg-gray-900 p-4">
         <div className="flex items-center gap-4 mb-2">
           <button
@@ -108,7 +111,7 @@ export default function DashboardPage() {
               tick={{ fill: "#9ca3af", fontSize: 12 }}
             />
             <Tooltip
-              formatter={(v: number) => [`${v} 件`, "完了"]}
+              formatter={tooltipFormatter}
               labelFormatter={(l) => `日付: ${l}`}
               contentStyle={{ background: "#1f2937", border: "none" }}
             />
@@ -124,7 +127,7 @@ export default function DashboardPage() {
         </ResponsiveContainer>
       </section>
 
-      {/* ── 下段：後で実装 ─────────────────── */}
+      {/* 下段チャートは後で実装 */}
       <section className="w-full h-64 rounded-lg border border-dashed border-gray-600 flex items-center justify-center text-gray-500">
         下段チャートは後で実装
       </section>

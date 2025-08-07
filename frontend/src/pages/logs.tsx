@@ -1,30 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import type { Task } from "@/types/task"; // ← パスは実際の配置に合わせて
-
-declare global {
-  interface Window {
-    api: {
-      loadTasks: () => Promise<{ tasks: Task[]; points: number }>;
-      saveTasks: (data: { tasks: Task[]; points: number }) => void;
-    };
-  }
-}
+import { useEffect, useMemo } from "react";
+import { useTasks } from "@/store/useTasks";
 
 export default function LogsPage() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [points, setPoints] = useState(0);
+  /* グローバル store（zustand）を再利用すると
+     他ページと状態が自動同期できる */
+  const { tasks, points, setTasks } = useTasks();
 
-  // ------------- load ---------------------------------
-  useEffect(() => {
-    window.api.loadTasks().then(({ tasks, points }) => {
-      setTasks(tasks);
-      setPoints(points);
-    });
-  }, []);
-
-  // ------------- completed list -----------------------
+  /* ---------- completed list ---------- */
   const completed = useMemo(
     () =>
       tasks
@@ -35,7 +19,14 @@ export default function LogsPage() {
     [tasks]
   );
 
-  // ------------- revert -------------------------------
+  /* ---------- 初回ロード ---------- */
+  useEffect(() => {
+    // store 経由でロード済みの場合はスキップ
+    if (tasks.length) return;
+    window.api.loadTasks().then(({ tasks }) => setTasks(tasks ?? []));
+  }, [setTasks, tasks.length]);
+
+  /* ---------- revert ---------- */
   const revert = (id: string) => {
     const next = tasks.map((t) =>
       t.id === id ? { ...t, completed: false, completedAt: undefined } : t
@@ -44,7 +35,7 @@ export default function LogsPage() {
     window.api.saveTasks({ tasks: next, points });
   };
 
-  // ------------- UI -----------------------------------
+  /* ---------- UI ---------- */
   return (
     <div className="mx-auto max-w-3xl p-4">
       <h1 className="text-2xl font-bold mb-4">完了タスク履歴</h1>

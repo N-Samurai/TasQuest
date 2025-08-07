@@ -1,42 +1,36 @@
-// frontend/next.config.ts
-import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import type { NextConfig } from "next";
 
-module.exports = (phase: string): NextConfig => {
+export default function (phase: string): NextConfig {
   const isDev = phase === PHASE_DEVELOPMENT_SERVER;
   const isExport = process.env.NEXT_EXPORT === "true";
 
-  // デバッグ表示（起動時に一度だけ出ます）
-  console.log("[next.config]", {
-    phase,
-    isDev,
-    NEXT_EXPORT: process.env.NEXT_EXPORT ?? "(unset)",
-  });
+  console.log("[next.config]", { phase, isDev, isExport });
 
+  /* ── 開発 (next dev) ───────────────────── */
   if (isDev) {
-    // ★ 開発は必ず絶対パス（/_next）に固定
     return {
       reactStrictMode: true,
-      images: { unoptimized: true },
-      assetPrefix: undefined, // or "/"
       trailingSlash: false,
+      images: { unoptimized: true },
+      assetPrefix: undefined, // /_next
     };
   }
 
+  /* ── 静的書き出し (next export) ─────────── */
   if (isExport) {
-    // ★ next export（Electron本番: file:// 読み）
     return {
       output: "export",
-      trailingSlash: true,
-      assetPrefix: "./",
+      trailingSlash: false, // ← 必ず false
+      assetPrefix: "./", // ← 必ず "./"
       images: { unoptimized: true },
       reactStrictMode: true,
     };
   }
 
-  // 通常の本番SSR（使わないならそのまま）
+  /* ── 通常 SSR ビルド (未使用ならそのまま) ─ */
   return {
     reactStrictMode: true,
     images: { unoptimized: true },
   };
-};
+}

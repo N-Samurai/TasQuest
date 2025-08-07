@@ -1,39 +1,62 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
-import cytoscape from "cytoscape";
+import cytoscape, {
+  Core,
+  ElementDefinition,
+  LayoutOptions,
+  EventObject,
+} from "cytoscape";
+import dagre from "cytoscape-dagre";
 import { useTasks } from "@/store/useTasks";
 
-/* ── React ラッパ（ブラウザ限定） ─────────────── */
-const CytoscapeComponent = dynamic(() => import("react-cytoscapejs"), {
-  ssr: false,
-});
+cytoscape.use(dagre); // プラグイン登録
 
-/* ── レイアウト：フォース指向 cose ─────────────── */
-const layout: cytoscape.LayoutOptions = {
-  name: "cose",
-  idealEdgeLength: 120,
-  nodeRepulsion: 4050,
-  nodeOverlap: 20,
-  gravity: 0.25,
-  padding: 30,
-  animate: false,
+/* --- 型付き dynamic import (any 不使用) ---------------------- */
+type CytoscapeProps = {
+  cy?: (cy: Core) => void;
+  elements: ElementDefinition[];
+  layout: LayoutOptions;
+  stylesheet: unknown;
+  style?: CSSProperties;
+  minZoom?: number;
+  maxZoom?: number;
+  panningEnabled?: boolean;
+  zoomingEnabled?: boolean;
+  boxSelectionEnabled?: boolean;
 };
 
-/* ── スタイル ──────────────────────────────── */
-const stylesheet: cytoscape.Stylesheet[] = [
+const CytoscapeComponent = dynamic(
+  async () => {
+    const mod = await import("react-cytoscapejs");
+    return mod as unknown as { default: React.ComponentType<CytoscapeProps> };
+  },
+  { ssr: false }
+) as React.ComponentType<CytoscapeProps>;
+
+/* --- dagre レイアウト ---------------------------------------- */
+const layout = {
+  name: "dagre",
+  rankDir: "TB",
+  nodeSep: 40,
+  rankSep: 80,
+  padding: 30,
+} as unknown as LayoutOptions;
+
+/* --------- スタイル ------------------------------------------- */
+const stylesheet = [
   {
     selector: "node",
     style: {
       label: "data(label)",
-      "text-opacity": 0, // ふだんは隠す
+      "text-opacity": 0,
       "text-valign": "center",
       "text-halign": "center",
-      "background-color": "#60a5fa", // 未完：青
+      "background-color": "#60a5fa",
+      color: "#fff",
       "text-outline-color": "#000",
       "text-outline-width": 1,
-      color: "#fff",
       width: 42,
       height: 42,
       "transition-property": "text-opacity width height",
@@ -42,11 +65,11 @@ const stylesheet: cytoscape.Stylesheet[] = [
   },
   {
     selector: 'node[completed = "true"]',
-    style: { "background-color": "#22c55e" }, // 完了：緑
+    style: { "background-color": "#22c55e" },
   },
   {
-    selector: "node:hover",
-    style: { "text-opacity": 1, width: 50, height: 50 }, // ホバーで拡大＋ラベル
+    selector: "node.hover",
+    style: { "text-opacity": 1, width: 50, height: 50 },
   },
   {
     selector: "edge",
@@ -55,17 +78,16 @@ const stylesheet: cytoscape.Stylesheet[] = [
       "line-color": "#9ca3af",
       "target-arrow-color": "#9ca3af",
       "target-arrow-shape": "triangle",
-      "curve-style": "straight", // フォース系と相性が良い
+      "curve-style": "bezier",
     },
   },
 ];
 
-/* ── ページコンポーネント ───────────────────── */
+/* --------- ページ -------------------------------------------- */
 export default function NetworkPage() {
   const tasks = useTasks((s) => s.tasks);
 
-  /* ノード・エッジ変換 */
-  const elements = useMemo(() => {
+  const elements: ElementDefinition[] = useMemo(() => {
     const nodes = tasks.map((t) => ({
       data: {
         id: t.id,
@@ -75,22 +97,48 @@ export default function NetworkPage() {
     }));
     const edges = tasks
       .filter((t) => t.parentId)
-      .map((t) => ({ data: { source: t.parentId!, target: t.id } }));
+      .map((t) => ({
+        data: {
+          id: `${t.parentId}-${t.id}`,
+          source: t.parentId!,
+          target: t.id,
+        },
+      }));
     return [...nodes, ...edges];
   }, [tasks]);
 
+  const cyRef = useRef<Core | null>(null);
+
+  /* hover クラス制御 + 再レイアウト */
+  useEffect(() => {
+    const cy = cyRef.current;
+    if (!cy) return;
+
+    const enter = (e: EventObject) => e.target.addClass("hover");
+    const leave = (e: EventObject) => e.target.removeClass("hover");
+    cy.on("mouseover", "node", enter);
+    cy.on("mouseout", "node", leave);
+
+    cy.json({ elements });
+    cy.layout(layout).run();
+
+    return () => {
+      cy.off("mouseover", "node", enter);
+      cy.off("mouseout", "node", leave);
+    };
+  }, [elements]);
+
   return (
-    /* 外側：スクロール可能な領域 */
     <div className="h-[calc(100vh-64px)] overflow-auto p-6 bg-[#0e172a]">
-      {/* カード風の枠 */}
       <div className="mx-auto max-w-6xl rounded-2xl shadow-lg ring-1 ring-gray-700/60">
         <CytoscapeComponent
-          elements={elements as any}
-          layout={layout as any}
-          stylesheet={stylesheet as any}
+          cy={(cy) => (cyRef.current = cy)}
+          elements={[]} /* 初回は空で OK */
+          layout={layout}
+          stylesheet={stylesheet}
           style={{
             width: "100%",
-            height: "600px", // 外側 div がスクロール
+            height: "600px",
             borderRadius: "1rem",
             background:
               "linear-gradient(135deg,#0f172a 0%,#111827 50%,#0f172a 100%)",

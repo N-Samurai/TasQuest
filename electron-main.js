@@ -1,5 +1,12 @@
 // electron-main.js
-const { app, BrowserWindow, ipcMain, Menu } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  globalShortcut,
+  protocol, // ★ 追加
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 const { pathToFileURL } = require("url");
@@ -7,29 +14,28 @@ const { pathToFileURL } = require("url");
 const isDev = !app.isPackaged || process.env.NEXT_DEV === "true";
 const dataFilePath = path.join(app.getPath("userData"), "tasks.json");
 
-// --- IPC: タスク保存/読込 ---------------------------------------------------
+/* ──────────── IPC : 読み書き ─────────────────── */
 ipcMain.handle("load-tasks", () => {
   try {
-    const content = fs.readFileSync(dataFilePath, "utf8");
-    return JSON.parse(content);
+    return JSON.parse(fs.readFileSync(dataFilePath, "utf8"));
   } catch {
     return { tasks: [], points: 0 };
   }
 });
 
-ipcMain.on("save-tasks", (_event, data) => {
+ipcMain.on("save-tasks", (_e, data) => {
   try {
     fs.writeFileSync(
       dataFilePath,
       JSON.stringify(data ?? { tasks: [], points: 0 }, null, 2),
-      "utf-8"
+      "utf8"
     );
   } catch (e) {
     console.error("save-tasks failed:", e);
   }
 });
 
-// 必要なら初回にファイルを作成
+/* ──────────── 初回データファイル ─────────────── */
 function ensureDataFile() {
   try {
     fs.accessSync(dataFilePath);
@@ -38,12 +44,28 @@ function ensureDataFile() {
     fs.writeFileSync(
       dataFilePath,
       JSON.stringify({ tasks: [], points: 0 }, null, 2),
-      "utf-8"
+      "utf8"
     );
   }
 }
 
-// --- BrowserWindow -----------------------------------------------------------
+/* ──────────── _next 静的ファイル読み替え ──────── */
+// ❶ 先の registerNextInterceptor を差し替え
+function registerNextInterceptor(outDir) {
+  protocol.interceptFileProtocol("file", (req, cb) => {
+    // ex) file:///C:/_next/static/chunks/main-xxxx.js
+    const full = decodeURI(req.url.substr(7)); // =>  /C:/_next/…  or  /_next/…
+    const m = full.match(/\/_next\/(.+)$/); // *_next/ 以降だけ取り出す
+    if (m) {
+      // Windows でも確実に outDir\_next\… へリダイレクト
+      const filePath = path.join(outDir, "_next", m[1]);
+      return cb(filePath);
+    }
+    cb(full); // それ以外はそのまま
+  });
+}
+
+/* ──────────── ウィンドウ生成 ─────────────────── */
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -56,16 +78,20 @@ function createWindow() {
     },
   });
 
-  // メニュー非表示（Win/Linux/macOS すべて）
+  /* メニュー非表示 */
   Menu.setApplicationMenu(null);
 
+  /* DevTools トグル */
+  globalShortcut.register("CommandOrControl+Shift+I", () => {
+    const w = BrowserWindow.getFocusedWindow();
+    if (w) w.webContents.toggleDevTools({ mode: "detach" });
+  });
+
+  /* 開発 / 本番ロード */
   if (isDev) {
-    // 開発: Next の dev サーバを表示（assetPrefix は next.config で無効にしておく）
     win.loadURL("http://localhost:3000");
     win.webContents.openDevTools({ mode: "detach" });
   } else {
-    // 本番: next export した index.html を file:// で表示（相対アセット前提）
-    // - out の候補: frontend/out or out
     const candidates = [
       path.join(__dirname, "frontend", "out"),
       path.join(__dirname, "out"),
@@ -74,17 +100,17 @@ function createWindow() {
       candidates.find((p) => fs.existsSync(path.join(p, "index.html"))) ||
       candidates[0];
 
-    const indexHtml = path.join(outDir, "index.html");
-    win.loadURL(pathToFileURL(indexHtml).href);
+    registerNextInterceptor(outDir); // ★ 追加
+    win.loadURL(pathToFileURL(path.join(outDir, "index.html")).href);
   }
 
-  // 失敗時のログ（デバッグ用）
+  /* 読み込み失敗ログ */
   win.webContents.on("did-fail-load", (_e, code, desc, url) => {
     console.error("did-fail-load:", code, desc, url);
   });
 }
 
-// --- App lifecycle -----------------------------------------------------------
+/* ──────────── ライフサイクル ─────────────────── */
 app.whenReady().then(() => {
   ensureDataFile();
   createWindow();
@@ -97,3 +123,6 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+
+/* アプリ終了時にショートカット解除 */
+app.on("will-quit", () => globalShortcut.unregisterAll());
