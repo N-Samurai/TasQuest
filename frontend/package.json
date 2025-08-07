@@ -10,7 +10,10 @@
     "preview:export": "npx serve out"
   },
   "dependencies": {
-    "cytoscape": "^3.31.1",
+    "cytoscape": "^3.33.0",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "cytoscape-dagre": "^2.5.0",
+    "dagre": "^0.8.5",
     "lucide-react": "^0.536.0",
     "nanoid": "^5.1.5",
     "next": "^15.3.4",
