@@ -5,4 +5,5 @@ export interface Task {
   children: Task[];
   deadline?: string;
   completed?: boolean;
+  completedAt?: string;
 }

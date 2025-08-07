@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "build:export": "cross-env NEXT_EXPORT=true next build && next export",
+    "build:export": "cross-env NEXT_EXPORT=true next build",
     "preview:export": "npx serve out"
   },
   "dependencies": {
@@ -16,7 +16,8 @@
     "next": "^15.3.4",
     "react": "^19.1.0",
     "react-cytoscapejs": "^2.0.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

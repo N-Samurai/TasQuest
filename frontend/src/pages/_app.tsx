@@ -1,20 +1,30 @@
+// pages/_app.tsx
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
-import Sidebar from "@/components/Sidebar"; // ← パスエイリアス @ を使わないなら "../components/Sidebar"
-import { useRouter } from "next/router";
+import { useEffect } from "react";
+import Sidebar from "@/components/Sidebar";
+import { useTasks } from "@/store/useTasks";
 
-export default function App({ Component, pageProps }: AppProps) {
-  const router = useRouter();
+export default function MyApp({ Component, pageProps }: AppProps) {
+  const { tasks, points, setTasks, setPoints } = useTasks();
 
-  // サイドバーの「新規タスク」→ タスク一覧へ遷移しつつ、クエリで「新規入力を開く」合図を渡す
-  const handleNewTask = () => {
-    router.push({ pathname: "/", query: { new: "1" } });
-  };
+  // 起動時 : ファイルから一括ロード
+  useEffect(() => {
+    window.api.loadTasks().then(({ tasks, points }) => {
+      setTasks(tasks ?? []);
+      setPoints(points ?? 0);
+    });
+  }, []);
+
+  // tasks / points が変わるたび保存
+  useEffect(() => {
+    window.api.saveTasks({ tasks, points });
+  }, [tasks, points]);
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      <Sidebar onNewTask={handleNewTask} />
-      <main className="flex-1 p-4 overflow-auto">
+    <div className="flex min-h-screen">
+      <Sidebar onNewTask={() => null} />
+      <main className="flex-1 p-4">
         <Component {...pageProps} />
       </main>
     </div>

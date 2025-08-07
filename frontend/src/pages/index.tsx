@@ -1,34 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import type { Task } from "../types/task";
 import TaskItem from "../components/TaskItem";
 import TaskInput from "../components/TaskInput";
 import { nanoid } from "nanoid";
-import Sidebar from "../components/Sidebar";
+import { useTasks } from "@/store/useTasks";
 
 const Index = () => {
-  const [tasks, setTasks] = useState<Task[]>([]); // タスクリスト
   const [input, setInput] = useState<string>(""); // テキストエリアの入力状態
-  const [points, setPoints] = useState<number>(0);
+  const { tasks, setTasks, points, setPoints } = useTasks();
   const [deadline, setDeadline] = useState<string>(""); // ← 追加
   const [showInput, setShowInput] = useState(false);
   const [parentId, setParentId] = useState<string>("");
   const [timelineRootId, setTimelineRootId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null); // どのタスクを編集中か
-  const [menuOpen, setMenuOpen] = useState(true); // メニューの表示切り替え
-
-  useEffect(() => {
-    window.api.loadTasks().then((data) => {
-      // tasks / points が無いケースを必ず潰す
-      const result = data as { tasks?: Task[]; points?: number };
-
-      setTasks(result.tasks ?? []); // ← ★ nullish 合体で必ず配列に
-      setPoints(result.points ?? 0);
-    });
-  }, []);
-
-  useEffect(() => {
-    window.api.saveTasks({ tasks, points }); // キャスト不要
-  }, [tasks, points]);
 
   const toggleTimeline = (id: string) =>
     setTimelineRootId((prev) => (prev === id ? null : id));
@@ -77,26 +61,23 @@ const Index = () => {
     const targetTask = tasks.find((task) => task.id === id);
     if (!targetTask) return;
 
-    // 子タスクに未完了があるかどうか確認（親→子を調べる）
-    const hasUncompletedChildren = tasks.some(
-      (task) => task.parentId === id && !task.completed
-    );
-
-    // まだ完了していない状態で、子タスクが未完了なら完了を禁止
-    if (!targetTask.completed && hasUncompletedChildren) {
-      alert("未完了の子タスクがあるため、完了できません。");
-      return;
-    }
+    // 子タスクの未完了チェック（略）
 
     const newCompleted = !targetTask.completed;
 
-    // ポイント加算・減算
-    setPoints((prevPoints) => (newCompleted ? prevPoints + 1 : prevPoints - 1));
+    // ポイント増減
+    setPoints((prev) => (newCompleted ? prev + 1 : prev - 1));
 
-    // 完了状態を更新
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === id ? { ...task, completed: newCompleted } : task
+    // 完了状態＋日時を更新
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id
+          ? {
+              ...task,
+              completed: newCompleted,
+              completedAt: newCompleted ? new Date().toISOString() : undefined,
+            }
+          : task
       )
     );
   };

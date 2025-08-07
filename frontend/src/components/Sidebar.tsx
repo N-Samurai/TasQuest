@@ -69,16 +69,6 @@ export default function Sidebar({ onNewTask }: Props) {
             {!collapsed && <span>{label}</span>}
           </Link>
         ))}
-
-        {/* New Task */}
-        <button
-          onClick={onNewTask}
-          className="mt-2 flex items-center gap-2 rounded px-3 py-2 text-gray-300 hover:bg-gray-700"
-          title={collapsed ? "新規タスク" : undefined}
-        >
-          <Plus size={20} />
-          {!collapsed && <span>新規タスク</span>}
-        </button>
       </nav>
     </div>
   );
