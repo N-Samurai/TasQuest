@@ -21,6 +21,7 @@ export default function Sidebar() {
   const items = [
     { href: "/dashboard", label: "ダッシュボード", Icon: Home },
     { href: "/", label: "タスク一覧", Icon: List },
+    { href: "/goals", label: "実績", Icon: Zap },
     { href: "/now", label: "NOW!!", Icon: Zap },
     { href: "/network", label: "ネットワークビュー", Icon: GitBranch },
     { href: "/logs", label: "ログ", Icon: History },

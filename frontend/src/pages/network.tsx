@@ -1,153 +1,265 @@
+// pages/network.tsx
 "use client";
 
-import { useMemo, useRef, useEffect, type CSSProperties } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import cytoscape, {
-  Core,
-  ElementDefinition,
-  LayoutOptions,
-  EventObject,
-} from "cytoscape";
-import dagre from "cytoscape-dagre";
 import { useTasks } from "@/store/useTasks";
+import { useGoals } from "@/store/useGoals";
+import type {
+  ForceGraphMethods,
+  NodeObject,
+  LinkObject,
+} from "react-force-graph-2d";
+import type {
+  ForceManyBody as D3ForceManyBody,
+  ForceLink as D3ForceLink,
+  SimulationNodeDatum,
+  SimulationLinkDatum,
+} from "d3-force";
 
-cytoscape.use(dagre); // プラグイン登録
+// ---- d3-force の型（ジェネリクス必須なので薄い型を用意）
+type SimNode = SimulationNodeDatum & { id?: string | number };
+type SimLink = SimulationLinkDatum<SimNode> & { kind?: string };
 
-/* --- 型付き dynamic import (any 不使用) ---------------------- */
-type CytoscapeProps = {
-  cy?: (cy: Core) => void;
-  elements: ElementDefinition[];
-  layout: LayoutOptions;
-  stylesheet: unknown;
-  style?: CSSProperties;
-  minZoom?: number;
-  maxZoom?: number;
-  panningEnabled?: boolean;
-  zoomingEnabled?: boolean;
-  boxSelectionEnabled?: boolean;
+const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
+  ssr: false,
+});
+
+// === Graph types（描画データ）===
+type GraphNode = NodeObject & {
+  id: string; // 必須
+  label?: string;
+  type: "task" | "goal";
+  completed?: boolean;
 };
 
-const CytoscapeComponent = dynamic(
-  async () => {
-    const mod = await import("react-cytoscapejs");
-    return mod as unknown as { default: React.ComponentType<CytoscapeProps> };
-  },
-  { ssr: false }
-) as React.ComponentType<CytoscapeProps>;
+type GraphLink = LinkObject & {
+  source: string | GraphNode; // 文字列 or ノード
+  target: string | GraphNode;
+  kind: "taskEdge" | "goalEdge";
+};
 
-/* --- dagre レイアウト ---------------------------------------- */
-const layout = {
-  name: "dagre",
-  rankDir: "TB",
-  nodeSep: 40,
-  rankSep: 80,
-  padding: 30,
-} as unknown as LayoutOptions;
-
-/* --------- スタイル ------------------------------------------- */
-const stylesheet = [
-  {
-    selector: "node",
-    style: {
-      label: "data(label)",
-      "text-opacity": 0,
-      "text-valign": "center",
-      "text-halign": "center",
-      "background-color": "#60a5fa",
-      color: "#fff",
-      "text-outline-color": "#000",
-      "text-outline-width": 1,
-      width: 42,
-      height: 42,
-      "transition-property": "text-opacity width height",
-      "transition-duration": "200ms",
-    },
-  },
-  {
-    selector: 'node[completed = "true"]',
-    style: { "background-color": "#22c55e" },
-  },
-  {
-    selector: "node.hover",
-    style: { "text-opacity": 1, width: 50, height: 50 },
-  },
-  {
-    selector: "edge",
-    style: {
-      width: 2,
-      "line-color": "#9ca3af",
-      "target-arrow-color": "#9ca3af",
-      "target-arrow-shape": "triangle",
-      "curve-style": "bezier",
-    },
-  },
-];
-
-/* --------- ページ -------------------------------------------- */
 export default function NetworkPage() {
   const tasks = useTasks((s) => s.tasks);
+  const goals = useGoals((s) => s.goals);
 
-  const elements: ElementDefinition[] = useMemo(() => {
-    const nodes = tasks.map((t) => ({
-      data: {
+  // ---- グラフデータ構築 ----
+  const data = useMemo<{ nodes: GraphNode[]; links: GraphLink[] }>(() => {
+    const nodes: GraphNode[] = [];
+    const links: GraphLink[] = [];
+
+    const taskIds = new Set(tasks.map((t) => t.id));
+    const goalIds = new Set(goals.map((g) => g.id));
+
+    for (const g of goals)
+      nodes.push({
+        id: g.id,
+        label: g.title,
+        type: "goal",
+        completed: !!g.completed,
+      });
+    for (const t of tasks)
+      nodes.push({
         id: t.id,
         label: t.title,
-        completed: t.completed ? "true" : "false",
-      },
-    }));
-    const edges = tasks
-      .filter((t) => t.parentId)
-      .map((t) => ({
-        data: {
-          id: `${t.parentId}-${t.id}`,
-          source: t.parentId!,
-          target: t.id,
-        },
-      }));
-    return [...nodes, ...edges];
-  }, [tasks]);
+        type: "task",
+        completed: !!t.completed,
+      });
 
-  const cyRef = useRef<Core | null>(null);
+    for (const t of tasks) {
+      if (!t.parentId) continue;
+      if (taskIds.has(t.parentId))
+        links.push({ source: t.parentId, target: t.id, kind: "taskEdge" });
+      else if (goalIds.has(t.parentId))
+        links.push({ source: t.parentId, target: t.id, kind: "goalEdge" });
+    }
+    return { nodes, links };
+  }, [tasks, goals]);
 
-  /* hover クラス制御 + 再レイアウト */
+  // ---- コンテナのサイズ観測（SSR安全） ----
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   useEffect(() => {
-    const cy = cyRef.current;
-    if (!cy) return;
+    if (!wrapRef.current) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const r = entry.contentRect;
+      setSize({ w: Math.max(100, r.width), h: Math.max(200, r.height) });
+    });
+    ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
 
-    const enter = (e: EventObject) => e.target.addClass("hover");
-    const leave = (e: EventObject) => e.target.removeClass("hover");
-    cy.on("mouseover", "node", enter);
-    cy.on("mouseout", "node", leave);
+  // ---- ForceGraph API ----
+  const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
 
-    cy.json({ elements });
-    cy.layout(layout).run();
+  // 物理パラメータ（Obsidian 風）を適用
+  // 物理パラメータ（Obsidian 風）を適用
+  useEffect(() => {
+    const api = fgRef.current as
+      | (ForceGraphMethods & {
+          d3Force?: (name: string) => unknown;
+          d3ReheatSimulation?: () => void;
+        })
+      | undefined;
 
-    return () => {
-      cy.off("mouseover", "node", enter);
-      cy.off("mouseout", "node", leave);
-    };
-  }, [elements]);
+    // ref が未準備 or d3Force が無いなら何もしない（エラー回避）
+    if (!api || typeof (api as { d3Force?: unknown }).d3Force !== "function") {
+      // console.warn("force-graph ref not ready; skip custom forces");
+      return;
+    }
+
+    const charge = api.d3Force!("charge") as
+      | D3ForceManyBody<SimNode>
+      | undefined;
+    charge?.strength(-2600);
+
+    const link = api.d3Force!("link") as
+      | D3ForceLink<SimNode, SimLink>
+      | undefined;
+    link
+      ?.distance((l) => ((l as SimLink).kind === "goalEdge" ? 180 : 120))
+      .strength(0.2);
+
+    api.d3ReheatSimulation?.();
+  }, [data.nodes.length, data.links.length, size.w, size.h]);
+
+  // レイアウト後に fit
+  const safeFit = () => fgRef.current?.zoomToFit?.(600, 40);
+  useEffect(() => {
+    const t = setTimeout(safeFit, 0);
+    return () => clearTimeout(t);
+  }, [data.nodes.length, data.links.length, size.w, size.h]);
+
+  // ---- ノード描画（Task=丸 / Goal=角丸）----
+  type PositionedNode = GraphNode & { x: number; y: number };
+
+  const drawNode = (
+    node: NodeObject,
+    ctx: CanvasRenderingContext2D,
+    scale: number
+  ) => {
+    const n = node as PositionedNode;
+    const r = 12;
+    const color =
+      n.type === "goal" ? "#a78bfa" : n.completed ? "#22c55e" : "#60a5fa";
+    ctx.fillStyle = color;
+
+    if (n.type === "goal") {
+      const w = 36,
+        h = 22,
+        x = n.x - w / 2,
+        y = n.y - h / 2,
+        rr = 6;
+      ctx.beginPath();
+      ctx.moveTo(x + rr, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rr);
+      ctx.arcTo(x + w, y + h, x, y + h, rr);
+      ctx.arcTo(x, y + h, x, y, rr);
+      ctx.arcTo(x, y, x + w, y, rr);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+
+    const label = n.label ?? "";
+    const fontSize = 12 / Math.sqrt(scale);
+    if (scale < 4 && label) {
+      ctx.font = `${fontSize}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = "rgba(255,255,255,.92)";
+      ctx.fillText(label, n.x, n.y + (n.type === "goal" ? 14 : r + 6));
+    }
+  };
+
+  const drawHitArea = (
+    node: NodeObject,
+    color: string,
+    ctx: CanvasRenderingContext2D
+  ) => {
+    const n = node as PositionedNode;
+    ctx.fillStyle = color;
+    if (n.type === "goal") {
+      const w = 36,
+        h = 22;
+      ctx.fillRect(n.x - w / 2, n.y - h / 2, w, h);
+    } else {
+      const r = 14;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  };
+
+  const handleNodeClick = (n: NodeObject) => {
+    const p = n as Partial<PositionedNode>;
+    if (typeof p.x === "number" && typeof p.y === "number") {
+      fgRef.current?.centerAt?.(p.x, p.y, 600);
+      fgRef.current?.zoom?.(1.6, 600);
+    }
+  };
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-auto p-6 bg-[#0e172a]">
-      <div className="mx-auto max-w-6xl rounded-2xl shadow-lg ring-1 ring-gray-700/60">
-        <CytoscapeComponent
-          cy={(cy) => (cyRef.current = cy)}
-          elements={[]} /* 初回は空で OK */
-          layout={layout}
-          stylesheet={stylesheet}
-          style={{
-            width: "100%",
-            height: "600px",
-            borderRadius: "1rem",
-            background:
-              "linear-gradient(135deg,#0f172a 0%,#111827 50%,#0f172a 100%)",
-          }}
+    <div className="p-6 bg-[#0e172a] h-[calc(100vh-0px)]">
+      <div
+        ref={wrapRef}
+        className="mx-auto max-w-[1400px] h-[calc(100vh-96px)] rounded-2xl ring-1 ring-gray-700/60 relative"
+        style={{
+          background:
+            "radial-gradient(1200px 600px at 60% -10%, rgba(99,102,241,0.15), transparent 60%), #0b1220",
+        }}
+      >
+        {/* legend + fit */}
+        <div className="absolute right-4 top-4 flex items-center gap-3 text-xs text-gray-200 bg-black/30 px-2 py-1 rounded z-10">
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="w-3 h-3 rounded-full inline-block"
+              style={{ background: "#60a5fa" }}
+            />
+            Task
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span
+              className="w-3 h-3 rounded inline-block"
+              style={{ background: "#a78bfa" }}
+            />
+            Goal
+          </span>
+          <button
+            onClick={safeFit}
+            className="px-2 py-0.5 rounded border hover:bg-white/10"
+          >
+            Fit
+          </button>
+        </div>
+
+        <ForceGraph2D
+          ref={fgRef}
+          width={size.w}
+          height={size.h}
+          graphData={data}
+          backgroundColor="#0b1220"
+          cooldownTime={15000}
           minZoom={0.2}
-          maxZoom={2}
-          panningEnabled
-          zoomingEnabled
-          boxSelectionEnabled={false}
+          maxZoom={3}
+          linkColor={(l: LinkObject) => {
+            const kind = (l as Partial<GraphLink>).kind;
+            return kind === "goalEdge" ? "#a78bfa" : "#9ca3af";
+          }}
+          linkWidth={1.2}
+          linkDirectionalArrowLength={6}
+          linkDirectionalArrowRelPos={1}
+          linkLineDash={(l: LinkObject) =>
+            (l as Partial<GraphLink>).kind === "goalEdge" ? [5, 4] : null
+          }
+          nodeRelSize={6}
+          enableNodeDrag
+          nodeCanvasObject={drawNode}
+          nodePointerAreaPaint={drawHitArea}
+          onNodeClick={handleNodeClick}
         />
       </div>
     </div>

@@ -10,9 +10,11 @@
     "preview:export": "npx serve out"
   },
   "dependencies": {
+    "canvas-confetti": "^1.9.3",
     "cytoscape": "^3.33.0",
     "cytoscape-cose-bilkent": "^4.1.0",
     "cytoscape-dagre": "^2.5.0",
+    "d3-force": "^3.0.0",
     "dagre": "^0.8.5",
     "lucide-react": "^0.536.0",
     "nanoid": "^5.1.5",
@@ -20,12 +22,16 @@
     "react": "^19.1.0",
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^19.1.0",
+    "react-force-graph": "^1.48.0",
+    "react-force-graph-2d": "^1.28.0",
     "recharts": "^3.1.2",
     "zustand": "^5.0.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/d3-force": "^3.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

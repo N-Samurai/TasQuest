@@ -1,21 +1,46 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { Task } from "../types/task";
 import TaskItem from "../components/TaskItem";
 import TaskInput from "../components/TaskInput";
 import { nanoid } from "nanoid";
 import { useTasks } from "@/store/useTasks";
+import Celebration from "@/components/effects/Celebration";
 
 const Index = () => {
-  const [input, setInput] = useState<string>(""); // テキストエリアの入力状態
+  const [input, setInput] = useState<string>("");
   const { tasks, setTasks, points, setPoints } = useTasks();
-  const [deadline, setDeadline] = useState<string>(""); // ← 追加
+  const [deadline, setDeadline] = useState<string>("");
   const [showInput, setShowInput] = useState(false);
   const [parentId, setParentId] = useState<string>("");
   const [timelineRootId, setTimelineRootId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null); // どのタスクを編集中か
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [celebrate, setCelebrate] = useState(false);
 
   const toggleTimeline = (id: string) =>
     setTimelineRootId((prev) => (prev === id ? null : id));
+
+  /* === 子孫未完了チェック用のマップを作成（flat 配列から） === */
+  const childrenMap = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const t of tasks) {
+      if (!t.parentId) continue;
+      const arr = map.get(t.parentId) ?? [];
+      arr.push(t);
+      map.set(t.parentId, arr);
+    }
+    return map;
+  }, [tasks]);
+
+  const hasOpenDescendant = (id: string): boolean => {
+    const stack = [...(childrenMap.get(id) ?? [])];
+    while (stack.length) {
+      const cur = stack.pop()!;
+      if (!cur.completed) return true;
+      const kids = childrenMap.get(cur.id);
+      if (kids) stack.push(...kids);
+    }
+    return false;
+  };
 
   const saveTask = () => {
     if (!editingId) return;
@@ -26,13 +51,11 @@ const Index = () => {
           : t
       )
     );
-
-    // 後片づけ
     setEditingId(null);
     setInput("");
     setDeadline("");
     setShowInput(false);
-    setParentId(""); // ← ここもクリアしておくと良い
+    setParentId("");
   };
 
   const addtask = () => {
@@ -47,59 +70,58 @@ const Index = () => {
       parentId: parentId || undefined,
     };
 
-    // ← どんな場合でもまず flat 配列に追加
     setTasks((prev) => [newTask, ...prev]);
 
-    // 入力リセット
     setInput("");
     setDeadline("");
     setParentId("");
   };
 
   const toggleTask = (id: string) => {
-    // 対象タスクを探す
-    const targetTask = tasks.find((task) => task.id === id);
-    if (!targetTask) return;
+    const target = tasks.find((task) => task.id === id);
+    if (!target) return;
 
-    // 子タスクの未完了チェック（略）
+    if (!target.completed && hasOpenDescendant(id)) {
+      alert("未完了の子タスクがあるため、親タスクを完了にできません。");
+      return;
+    }
 
-    const newCompleted = !targetTask.completed;
+    const willComplete = !target.completed; // ← 追加
 
-    // ポイント増減
-    setPoints((prev) => (newCompleted ? prev + 1 : prev - 1));
+    setPoints((prev) => (willComplete ? prev + 1 : Math.max(0, prev - 1)));
 
-    // 完了状態＋日時を更新
     setTasks((prev) =>
       prev.map((task) =>
         task.id === id
           ? {
               ...task,
-              completed: newCompleted,
-              completedAt: newCompleted ? new Date().toISOString() : undefined,
+              completed: willComplete,
+              completedAt: willComplete ? new Date().toISOString() : undefined,
             }
           : task
       )
     );
+
+    if (willComplete) setCelebrate(true); // ← 追加：完了時だけ発火
   };
 
   const onDelete = (id: string) => {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
   };
+
   function buildTaskTree(tasks: Task[]): Task[] {
     const taskMap: Record<string, Task & { children: Task[] }> = {};
     const roots: Task[] = [];
 
-    // 初期化
     tasks.forEach((task) => {
       taskMap[task.id] = { ...task, children: [] };
     });
 
-    // 親子関係を構築
     tasks.forEach((task) => {
       if (task.parentId && taskMap[task.parentId]) {
         taskMap[task.parentId].children.push(taskMap[task.id]);
       } else {
-        roots.push(taskMap[task.id]); // parentIdがない＝ルート
+        roots.push(taskMap[task.id]);
       }
     });
 
@@ -107,18 +129,18 @@ const Index = () => {
   }
 
   const tree = buildTaskTree(tasks);
-  // Index.tsx 内の return の直前に追加
+
   const renderTasks = (nodes: Task[], level = 0): React.ReactElement[] =>
     nodes
       .filter((t) => !t.completed)
       .flatMap((t) => {
-        const { children: childArray, ...taskProps } = t; // ← ★ children を除外
+        const { children: childArray, ...taskProps } = t;
 
         if (t.id === timelineRootId) {
           return [
             <TaskItem
               key={t.id}
-              {...taskProps} // ✅ children を含めない
+              {...taskProps}
               level={level}
               toggleTask={toggleTask}
               onDelete={onDelete}
@@ -135,10 +157,12 @@ const Index = () => {
               setEditingId={setEditingId}
               editingId={editingId}
               saveTask={saveTask}
+              blockedByChildren={hasOpenDescendant(t.id)}
             />,
             ...flattenAndSortByDeadline(t).map((c) => {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { children: _omit, ...childProps } = c; // children 除外
+              const { children: _children, ...childProps } = c;
+              void _children; // ← 未使用扱いを回避（参照したので no-unused-vars を満たす）
+
               return (
                 <TaskItem
                   key={c.id}
@@ -159,17 +183,17 @@ const Index = () => {
                   setEditingId={setEditingId}
                   editingId={editingId}
                   saveTask={saveTask}
+                  blockedByChildren={hasOpenDescendant(c.id)}
                 />
               );
             }),
           ];
         }
 
-        // ふつうのツリー描画
         return [
           <TaskItem
             key={t.id}
-            {...taskProps} // ✅ children を含めない
+            {...taskProps}
             level={level}
             toggleTask={toggleTask}
             onDelete={onDelete}
@@ -186,8 +210,9 @@ const Index = () => {
             toggleTimeline={toggleTimeline}
             editingId={editingId}
             saveTask={saveTask}
+            blockedByChildren={hasOpenDescendant(t.id)}
           >
-            {renderTasks(childArray, level + 1)} {/* ← 再帰描画 */}
+            {renderTasks(childArray, level + 1)}
           </TaskItem>,
         ];
       });
@@ -212,17 +237,18 @@ const Index = () => {
 
   return (
     <div className="flex w-full h-screen">
-      {/* メインコンテンツ */}
       <div className="flex-1 p-4 overflow-y-auto relative">
         <div className="ml-50 font-bold text-gray-700">{points}pt</div>
 
         <ul>{renderTasks(tree)}</ul>
+
         <button
           onClick={() => setShowInput(!showInput)}
           className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-blue-500 text-white text-2xl font-bold shadow-lg hover:bg-blue-600 transition duration-200"
         >
           +
         </button>
+
         {editingId === null && showInput && (
           <TaskInput
             input={input}
@@ -234,12 +260,13 @@ const Index = () => {
             setParentId={setParentId}
             deadline={deadline ?? ""}
             id=""
-            onSubmit={addtask} // ✅ ここを addtask にする
+            onSubmit={addtask}
             submitLabel="追加"
             setEditingId={setEditingId}
           />
         )}
       </div>
+      <Celebration open={celebrate} onDone={() => setCelebrate(false)} />
     </div>
   );
 };
